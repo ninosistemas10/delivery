@@ -64,5 +64,15 @@ func validateEnvironments() error {
 		return errors.New("the SECRET_ID env is mandatory")
 	}
 
+	if strings.TrimSpace(os.Getenv("CLOUDINARY_CLOUD_NAME")) == "" {
+		return errors.New("the WEBHOOK_ID env is mandatory")
+	}
+	if strings.TrimSpace(os.Getenv("CLOUDINARY_API_KEY")) == "" {
+		return errors.New("the VALIDATION_URL env is mandatory")
+	}
+	if strings.TrimSpace(os.Getenv("CLOUDINARY_API_SECRET")) == "" {
+		return errors.New("the CLIENT_ID env is mandatory")
+	}
+
 	return nil
 }

@@ -9,19 +9,16 @@ import (
 )
 
 func main() {
-	err := loadEnv()
-	if err != nil {
+	if err := loadEnv(); err != nil {
 		log.Fatal(err)
 	}
 
-	err = validateEnvironments()
+	err := validateEnvironments()
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	e := newHTTP(response.HTTPErrorHandler)
-	e.Static("/promocion", "uploads/promocion")
-	e.Static("/categorias", "uploads/categorias")
 
 	dbPool, err := newDBConnection()
 	if err != nil {
