@@ -77,8 +77,8 @@ func (c Category) Update(m *model.Category) error {
 }
 
 func (c Category) UpdateImage(ID uuid.UUID, imagePath string) error {
-	// Obtener la hora actual en el formato adecuado
-	updatedAt := time.Now().Unix() // Cambiar a time.Now() si el campo es TIMESTAMP
+	// Obtener la hora actual como tipo time.Time para el campo TIMESTAMP
+	updatedAt := time.Now()
 
 	// Agregar mensajes de depuración
 	fmt.Println("🔄 Actualizando imagen en la base de datos para la categoría con ID:", ID)
