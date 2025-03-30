@@ -3,6 +3,7 @@ package category_y
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
@@ -76,16 +77,28 @@ func (c Category) Update(m *model.Category) error {
 }
 
 func (c Category) UpdateImage(ID uuid.UUID, imagePath string) error {
+	// Obtener la hora actual en el formato adecuado
+	updatedAt := time.Now().Unix() // Cambiar a time.Now() si el campo es TIMESTAMP
+
+	// Agregar mensajes de depuración
+	fmt.Println("🔄 Actualizando imagen en la base de datos para la categoría con ID:", ID)
+	fmt.Println("🖼️ URL de la imagen recibida:", imagePath)
+	fmt.Println("⏰ Hora de actualización:", updatedAt)
+
+	// Ejecutar la consulta de actualización
 	_, err := c.db.Exec(
 		context.Background(),
 		psqlUpdateImage,
 		imagePath,
-		time.Now().Unix(), // Registrar hora de actualización
+		updatedAt,
 		ID,
 	)
 	if err != nil {
+		fmt.Println("❌ Error al actualizar la imagen en la base de datos:", err)
 		return err
 	}
+
+	fmt.Println("✅ Imagen actualizada correctamente en la base de datos")
 	return nil
 }
 
