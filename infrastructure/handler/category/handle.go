@@ -1,6 +1,8 @@
 package category
 
 import (
+	"log"
+
 	"github.com/cloudinary/cloudinary-go/api/uploader"
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
@@ -53,6 +55,7 @@ func (h handler) Update(c echo.Context) error {
 }
 
 func (h handler) UpdateImage(c echo.Context) error {
+	log.Println("🚀 UpdateImage endpoint called")
 	ID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
 		return h.response.BindFailed(err)
