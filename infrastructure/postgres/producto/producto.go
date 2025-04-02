@@ -35,7 +35,7 @@ var (
 	psqlDelete           = postgres.BuildSQLDelete(table)
 	psqlGetAll           = postgres.BuildSQLSelect(table, fields)
 	psqlGetAllByCategory = postgres.BuilddSQLSelectByCategory(table, fields)
-	psqlUpdateImage      = `UPDATE productos SET images = $1, updated_at = $2 WHERE id = $3` // Nueva consulta
+	psqlUpdateImage      = `UPDATE productos SET imagen = $1, updated_at = $2 WHERE id = $3` // Nueva consulta
 
 )
 
