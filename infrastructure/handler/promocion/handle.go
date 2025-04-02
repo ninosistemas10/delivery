@@ -2,12 +2,12 @@ package promocion
 
 import (
 	"fmt"
-	"io"
-	"os"
-	"path/filepath"
+	"log"
 
+	"github.com/cloudinary/cloudinary-go/api/uploader"
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
+	"github.com/ninosistemas10/delivery/config"
 	"github.com/ninosistemas10/delivery/domain/promocion"
 	"github.com/ninosistemas10/delivery/infrastructure/handler/response"
 	"github.com/ninosistemas10/delivery/model"
@@ -59,66 +59,114 @@ func (h handler) Update(c echo.Context) error {
 }
 
 func (h handler) UpdateImage(c echo.Context) error {
-	// 🔹 Parsear el ID de la categoría desde la URL
+	log.Println("🚀 UpdateImage endpoint called")
 	ID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
 		return h.response.BindFailed(err)
 	}
 
-	// 🔹 Procesar el archivo de imagen
-	file, err := c.FormFile("image")
+	file, err := c.FormFile("imagen")
 	if err != nil {
 		return h.response.Error(c, "No image file provided", err)
 	}
 
-	// 🔹 Abrir el archivo
 	src, err := file.Open()
 	if err != nil {
 		return h.response.Error(c, "Unable to open image file", err)
 	}
 	defer src.Close()
 
-	// 🔹 Definir la ruta de almacenamiento
-	uploadDir := "uploads/promocion/"
-	if err := os.MkdirAll(uploadDir, os.ModePerm); err != nil {
-		return h.response.Error(c, "Unable to create directory", err)
-	}
+	// Configuración de Cloudinary
+	cld := config.SetupCloudinary()
 
-	// 🔹 Generar un nombre de archivo único
-	filename := uuid.New().String() + filepath.Ext(file.Filename)
-	filePath := filepath.Join(uploadDir, filename)
+	// Crear un nombre único para la imagen
+	filename := uuid.New().String() + "_" + file.Filename
 
-	// 🔹 Crear el archivo destino
-	dst, err := os.Create(filePath)
+	// Subir a Cloudinary
+	uploadResult, err := cld.Upload.Upload(c.Request().Context(), src, uploader.UploadParams{
+		Folder:   "products", // Carpeta en Cloudinary
+		PublicID: filename,
+	})
 	if err != nil {
-		return h.response.Error(c, "Unable to save image file", err)
-	}
-	defer dst.Close()
-
-	// 🔹 Guardar la imagen en el servidor
-	if _, err := io.Copy(dst, src); err != nil {
-		return h.response.Error(c, "Error copying image to destination", err)
+		return h.response.Error(c, "Error uploading image to Cloudinary", err)
 	}
 
-	// 🔹 Verificar si la imagen realmente se guardó
-	if _, err := os.Stat(filePath); os.IsNotExist(err) {
-		return h.response.Error(c, "Image file was not saved", err)
+	// Obtener la URL segura
+	imageURL := uploadResult.SecureURL
+
+	// Actualizar la URL en la base de datos
+	err = h.useCase.UpdateImage(ID, imageURL) // <- Aquí debe actualizarse la URL en la DB
+	if err != nil {
+		return h.response.Error(c, "Error updating image URL in database", err)
 	}
 
-	// 🔹 Construir la URL de acceso a la imagen
-	imageURL := fmt.Sprintf("http://localhost:8081/promocion/%s", filename)
-
-	// 🔹 Llamar al caso de uso para actualizar la imagen en la base de datos
-	if err := h.useCase.UpdateImage(ID, imageURL); err != nil {
-		return h.response.Error(c, "useCase.UpdateImage failed", err)
-	}
-
-	// 🔹 Retornar respuesta exitosa con la URL correcta
 	return c.JSON(h.response.OK(map[string]string{
 		"message": "Image updated successfully",
-		"image":   imageURL,
+		"imagen":  imageURL,
 	}))
 }
+
+// func (h handler) UpdateImage(c echo.Context) error {
+// 	// 🔹 Parsear el ID de la categoría desde la URL
+// 	ID, err := uuid.Parse(c.Param("id"))
+// 	if err != nil {
+// 		return h.response.BindFailed(err)
+// 	}
+
+// 	// 🔹 Procesar el archivo de imagen
+// 	file, err := c.FormFile("image")
+// 	if err != nil {
+// 		return h.response.Error(c, "No image file provided", err)
+// 	}
+
+// 	// 🔹 Abrir el archivo
+// 	src, err := file.Open()
+// 	if err != nil {
+// 		return h.response.Error(c, "Unable to open image file", err)
+// 	}
+// 	defer src.Close()
+
+// 	// 🔹 Definir la ruta de almacenamiento
+// 	uploadDir := "uploads/promocion/"
+// 	if err := os.MkdirAll(uploadDir, os.ModePerm); err != nil {
+// 		return h.response.Error(c, "Unable to create directory", err)
+// 	}
+
+// 	// 🔹 Generar un nombre de archivo único
+// 	filename := uuid.New().String() + filepath.Ext(file.Filename)
+// 	filePath := filepath.Join(uploadDir, filename)
+
+// 	// 🔹 Crear el archivo destino
+// 	dst, err := os.Create(filePath)
+// 	if err != nil {
+// 		return h.response.Error(c, "Unable to save image file", err)
+// 	}
+// 	defer dst.Close()
+
+// 	// 🔹 Guardar la imagen en el servidor
+// 	if _, err := io.Copy(dst, src); err != nil {
+// 		return h.response.Error(c, "Error copying image to destination", err)
+// 	}
+
+// 	// 🔹 Verificar si la imagen realmente se guardó
+// 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
+// 		return h.response.Error(c, "Image file was not saved", err)
+// 	}
+
+// 	// 🔹 Construir la URL de acceso a la imagen
+// 	imageURL := fmt.Sprintf("http://localhost:8081/promocion/%s", filename)
+
+// 	// 🔹 Llamar al caso de uso para actualizar la imagen en la base de datos
+// 	if err := h.useCase.UpdateImage(ID, imageURL); err != nil {
+// 		return h.response.Error(c, "useCase.UpdateImage failed", err)
+// 	}
+
+// 	// 🔹 Retornar respuesta exitosa con la URL correcta
+// 	return c.JSON(h.response.OK(map[string]string{
+// 		"message": "Image updated successfully",
+// 		"image":   imageURL,
+// 	}))
+// }
 
 func (h handler) Delete(c echo.Context) error {
 	ID, err := uuid.Parse(c.Param("id"))

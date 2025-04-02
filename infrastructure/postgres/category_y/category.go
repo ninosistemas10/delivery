@@ -78,10 +78,6 @@ func (c Category) Update(m *model.Category) error {
 
 func (c Category) UpdateImage(ID uuid.UUID, imagePath string) error {
 
-	// Agregar mensajes de depuración
-	fmt.Println("🔄 Actualizando imagen en la base de datos para la categoría con ID:", ID)
-	fmt.Println("🖼️ URL de la imagen recibida:", imagePath)
-
 	// Ejecutar la consulta de actualización
 	_, err := c.db.Exec(
 		context.Background(),

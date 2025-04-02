@@ -24,18 +24,24 @@ func (p Producto) Create(m *model.Producto) error {
 
 	m.ID = ID
 
-	if len(m.Imagen) == 0 { m.Imagen = "" }
+	if len(m.Imagen) == 0 {
+		m.Imagen = ""
+	}
 
 	m.CreateAt = time.Now().Unix()
 
 	err = p.storage.Create(m)
-	if err != nil { return err }
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
 
-func (p Producto) Update(m * model.Producto) error {
-	if !m.HasID() { return fmt.Errorf("Update HasID") }
+func (p Producto) Update(m *model.Producto) error {
+	if !m.HasID() {
+		return fmt.Errorf("Update HasID")
+	}
 
 	if len(m.Imagen) == 0 {
 		m.Imagen = ""
@@ -44,37 +50,33 @@ func (p Producto) Update(m * model.Producto) error {
 	m.UpdateAt = time.Now().Unix()
 
 	err := p.storage.Update(m)
-	if err != nil { return err}
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
 
-func (p Producto) UpdateEsceptImage(ID uuid.UUID, updatedProducto model.Producto) error{
-	//Obtener el producto por su ID
-	m, err := p.GetByID(ID)
-	if err != nil { return err }
+func (c Producto) UpdateImage(ID uuid.UUID, imagePath string) error {
+	// Verificar si el ID es válido
+	if ID == uuid.Nil {
+		return fmt.Errorf("invalid ID")
+	}
 
-	//Actualizar todos los campos excepto la imagen
-	m.Nombre = updatedProducto.Nombre
-	m.Descripcion = updatedProducto.Descripcion
-	m.Activo = updatedProducto.Activo
-	m.Precio = updatedProducto.Precio
-	m.Time = updatedProducto.Time
-	m.Calorias = updatedProducto.Calorias
-
-	//Actualizar otros campos segun la estructura de tu modelo
-	m.UpdateAt = time.Now().Unix()
-
-	//Actualizar la categoria en el almacenamiento
-	err = p.storage.Update(&m)
-	if err != nil { return err }
+	// Intentar actualizar la imagen en la base de datos
+	err := c.storage.UpdateImage(ID, imagePath)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
 
 func (p Producto) Delete(ID uuid.UUID) error {
 	err := p.storage.Delete(ID)
-	if err != nil { return err }
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -96,11 +98,10 @@ func (p Producto) GetByCategoryID(idCategoria uuid.UUID) (model.Productos, error
 	return productos, nil
 }
 
-func(p Producto) GetAll() (model.Productos, error) {
+func (p Producto) GetAll() (model.Productos, error) {
 	productos, err := p.storage.GetAll()
 	if err != nil {
 		return nil, fmt.Errorf("producto: %w", err)
 	}
 	return productos, nil
 }
-
