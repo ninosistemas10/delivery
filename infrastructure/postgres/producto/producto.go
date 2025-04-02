@@ -3,6 +3,8 @@ package producto
 import (
 	"context"
 	"database/sql"
+	"fmt"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -11,10 +13,9 @@ import (
 	"github.com/ninosistemas10/delivery/model"
 )
 
-
 const table = "productos"
 
-var fields = [] string{
+var fields = []string{
 	"id",
 	"idcategoria",
 	"nombre",
@@ -29,11 +30,12 @@ var fields = [] string{
 }
 
 var (
-	psqlInsert = postgres.BuildSQLInsert(table, fields)
-	psqlUpdate = postgres.BuildSQLUpdateByID(table, fields)
-	psqlDelete = postgres.BuildSQLDelete(table)
-	psqlGetAll = postgres.BuildSQLSelect(table, fields)
+	psqlInsert           = postgres.BuildSQLInsert(table, fields)
+	psqlUpdate           = postgres.BuildSQLUpdateByID(table, fields)
+	psqlDelete           = postgres.BuildSQLDelete(table)
+	psqlGetAll           = postgres.BuildSQLSelect(table, fields)
 	psqlGetAllByCategory = postgres.BuilddSQLSelectByCategory(table, fields)
+	psqlUpdateImage      = `UPDATE productos SET images = $1, updated_at = $2 WHERE id = $3` // Nueva consulta
 
 )
 
@@ -61,11 +63,13 @@ func (p Producto) Create(m *model.Producto) error {
 		m.CreateAt,
 		postgres.Int64ToNull(m.UpdateAt),
 	)
-	if err != nil { return err }
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
-func (p Producto) Update(m * model.Producto) error {
+func (p Producto) Update(m *model.Producto) error {
 	_, err := p.db.Exec(
 		context.Background(),
 		psqlUpdate,
@@ -81,35 +85,40 @@ func (p Producto) Update(m * model.Producto) error {
 		m.ID,
 	)
 
-	if err != nil { return err }
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
-func (p Producto) UpdateEsceptImage(ID uuid.UUID, updatedProducto model.Producto) error {
-	//Actualizar todos los campos excepto la imagen
-	_, err := p.db.Exec(
+func (c Producto) UpdateImage(ID uuid.UUID, imagePath string) error {
+
+	// Ejecutar la consulta de actualización
+	_, err := c.db.Exec(
 		context.Background(),
-		psqlUpdate,
-		updatedProducto.Nombre,
-		updatedProducto.Descripcion,
-		updatedProducto.Activo,
-		updatedProducto.Precio,
-		updatedProducto.Time,
-		updatedProducto.Calorias,
-
+		psqlUpdateImage,
+		imagePath,
+		time.Now().Unix(),
+		ID,
 	)
-	if err != nil { return  err}
+	if err != nil {
+		fmt.Println("❌ Error al actualizar la imagen en la base de datos:", err)
+		return err
+	}
+
+	fmt.Println("✅ Imagen actualizada correctamente en la base de datos")
 	return nil
 }
 
-
-func(p Producto) Delete(ID uuid.UUID) error {
+func (p Producto) Delete(ID uuid.UUID) error {
 	_, err := p.db.Exec(
 		context.Background(),
 		psqlDelete,
 		ID,
 	)
-	if  err != nil { return err }
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -128,7 +137,7 @@ func (p Producto) GetByCategoryID(idCategoria uuid.UUID) (model.Productos, error
 	query := psqlGetAllByCategory
 	rows, err := p.db.Query(
 		context.Background(),
-		query + " WHERE idcategoria = $1",
+		query+" WHERE idcategoria = $1",
 		idCategoria,
 	)
 	if err != nil {
@@ -148,23 +157,23 @@ func (p Producto) GetByCategoryID(idCategoria uuid.UUID) (model.Productos, error
 	return productos, nil
 }
 
-
-
-
-
-func (p Producto) GetAll() (model.Productos, error){
+func (p Producto) GetAll() (model.Productos, error) {
 	rows, err := p.db.Query(
 		context.Background(),
 		psqlGetAll,
 	)
-	if err != nil { return nil, err }
+	if err != nil {
+		return nil, err
+	}
 
 	defer rows.Close()
 
 	var ms model.Productos
 	for rows.Next() {
 		m, err := p.scanRow(rows)
-		if err != nil { return nil, err }
+		if err != nil {
+			return nil, err
+		}
 
 		ms = append(ms, m)
 	}
@@ -189,15 +198,11 @@ func (p Producto) scanRow(s pgx.Row) (model.Producto, error) {
 		&m.CreateAt,
 		&updateAtNull,
 	)
-	if err != nil { return m, err }
+	if err != nil {
+		return m, err
+	}
 
 	m.UpdateAt = updateAtNull.Int64
 
 	return m, nil
 }
-
-
-
-
-
-

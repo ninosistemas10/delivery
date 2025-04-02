@@ -2,9 +2,12 @@ package producto
 
 import (
 	"fmt"
+	"log"
 
+	"github.com/cloudinary/cloudinary-go/api/uploader"
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
+	"github.com/ninosistemas10/delivery/config"
 	"github.com/ninosistemas10/delivery/domain/producto"
 	"github.com/ninosistemas10/delivery/model"
 
@@ -12,7 +15,7 @@ import (
 )
 
 type handler struct {
-	useCase producto.UseCase
+	useCase  producto.UseCase
 	response response.API
 }
 
@@ -21,23 +24,18 @@ func newHandler(useCase producto.UseCase) handler {
 }
 
 func (h handler) Create(c echo.Context) error {
-    m := model.Producto{}
+	m := model.Producto{}
 
-    if err := c.Bind(&m); err != nil {
-        return h.response.BindFailed(err)
-    }
+	if err := c.Bind(&m); err != nil {
+		return h.response.BindFailed(err)
+	}
 
+	if err := h.useCase.Create(&m); err != nil {
+		return h.response.Error(c, "useCase.Create()", err)
+	}
 
-    if err := h.useCase.Create(&m); err != nil {
-        return h.response.Error(c, "useCase.Create()", err)
-    }
-
-    return c.JSON(h.response.Created(m))
+	return c.JSON(h.response.Created(m))
 }
-
-
-
-
 
 func (h handler) Update(c echo.Context) error {
 	m := model.Producto{}
@@ -54,34 +52,58 @@ func (h handler) Update(c echo.Context) error {
 	m.ID = ID
 
 	if err := h.useCase.Update(&m); err != nil {
-		return h.response.Error(c,"h.useCase.Update()", err)
+		return h.response.Error(c, "h.useCase.Update()", err)
 	}
 
 	return c.JSON(h.response.Updated(m))
 }
 
-func (h handler) UpdateEsceptImage(c echo.Context) error {
-	//bind de los datos del cuerpo de la solicitud a una instancia de model.Producto
-	updatedProducto := model.Producto{}
-	if err := c.Bind(&updatedProducto); err != nil {
-		return h.response.BindFailed(err)
-	}
-
-	//Parsear el Id del producto de la URL
+func (h handler) UpdateImage(c echo.Context) error {
+	log.Println("🚀 UpdateImage endpoint called")
 	ID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
 		return h.response.BindFailed(err)
 	}
 
-	//llamar al metodo UpdateEsceptImage de la useCase
-	err = h.useCase.UpdateEsceptImage(ID, updatedProducto)
+	file, err := c.FormFile("imagen")
 	if err != nil {
-		return h.response.Error(c, "h.useCaase.Update()", err)
+		return h.response.Error(c, "No image file provided", err)
 	}
 
-	//retorna la repuesta JSON con el producto actualizadodd
-	return c.JSON(h.response.Updated(updatedProducto))
+	src, err := file.Open()
+	if err != nil {
+		return h.response.Error(c, "Unable to open image file", err)
+	}
+	defer src.Close()
 
+	// Configuración de Cloudinary
+	cld := config.SetupCloudinary()
+
+	// Crear un nombre único para la imagen
+	filename := uuid.New().String() + "_" + file.Filename
+
+	// Subir a Cloudinary
+	uploadResult, err := cld.Upload.Upload(c.Request().Context(), src, uploader.UploadParams{
+		Folder:   "products", // Carpeta en Cloudinary
+		PublicID: filename,
+	})
+	if err != nil {
+		return h.response.Error(c, "Error uploading image to Cloudinary", err)
+	}
+
+	// Obtener la URL segura
+	imageURL := uploadResult.SecureURL
+
+	// Actualizar la URL en la base de datos
+	err = h.useCase.UpdateImage(ID, imageURL) // <- Aquí debe actualizarse la URL en la DB
+	if err != nil {
+		return h.response.Error(c, "Error updating image URL in database", err)
+	}
+
+	return c.JSON(h.response.OK(map[string]string{
+		"message": "Image updated successfully",
+		"imagen":  imageURL,
+	}))
 }
 
 func (h handler) Delete(c echo.Context) error {
@@ -113,24 +135,23 @@ func (h handler) GetByID(c echo.Context) error {
 }
 
 func (h handler) GetByCategoryID(c echo.Context) error {
-    idCategoria, err := uuid.Parse(c.Param("idcategoria"))
-    fmt.Println("Valor importante de idcategoria:", idCategoria)
+	idCategoria, err := uuid.Parse(c.Param("idcategoria"))
+	fmt.Println("Valor importante de idcategoria:", idCategoria)
 
-    // Imprime el contexto
-    fmt.Printf("Contexto: %+v\n", c)
+	// Imprime el contexto
+	fmt.Printf("Contexto: %+v\n", c)
 
-    if err != nil {
-        return h.response.Error(c, "uuid.Parse()", err)
-    }
+	if err != nil {
+		return h.response.Error(c, "uuid.Parse()", err)
+	}
 
-    productos, err := h.useCase.GetByCategoryID(idCategoria)
-    if err != nil {
-        return h.response.Error(c, "useCase.GetByCategoryID", err)
-    }
+	productos, err := h.useCase.GetByCategoryID(idCategoria)
+	if err != nil {
+		return h.response.Error(c, "useCase.GetByCategoryID", err)
+	}
 
-    return c.JSON(h.response.OK(productos))
+	return c.JSON(h.response.OK(productos))
 }
-
 
 func (h handler) GetAll(c echo.Context) error {
 	productos, err := h.useCase.GetAll()
@@ -140,4 +161,3 @@ func (h handler) GetAll(c echo.Context) error {
 
 	return c.JSON(h.response.OK(productos))
 }
-
